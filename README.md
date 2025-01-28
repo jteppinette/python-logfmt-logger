@@ -179,6 +179,48 @@ logging.basicConfig(handlers=[handler])
 logging.error("hello") # at=ERROR when=2022-04-20 msg=hello
 ```
 
+**excluding keys or other small tweaks**
+
+All non-standard attributes on the log-record such as those added by the `extra`
+key in the log-call or by a filter will be included by default. To exclude those
+from the logging add a
+[`filter`](https://docs.python.org/3/library/logging.html?highlight=logrecord#logging.LogRecord)
+unsetting them from the records.
+
+This can also be used for other customizations where full subclassing is not needed.
+
+```python
+import sys
+import logging
+import copy
+from logfmter import Logfmter
+
+if sys.version_info >= (3, 11):
+
+    # 3.11 added the capability for filters to return a new record to modify records
+    # without effecting other handlers
+    def filter_keys(record: logging.LogRecord) -> logging.LogRecord:
+        record = copy.copy(record)
+        for key in ["unwanted_key", "other_key"]:
+            record.__dict__.pop(key, None)
+        return record
+else:
+    # If modifying is a problem in earlier version subclassing can be used instead
+    def filter_keys(record: logging.LogRecord) -> logging.LogRecord:
+        for key in ["unwanted_key", "other_key"]:
+            record.__dict__.pop(key, None)
+        return True
+
+formatter = Logfmter()
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+handler.addFilter(filter_keys)
+
+logging.basicConfig(handlers=[handler])
+
+logging.error("hello", extra={"unwanted_key": "Some unwanted or secret value"}) # at=ERROR when=2022-04-20 msg=hello
+```
+
 ### Extension
 
 You can subclass the formatter to change its behavior.
